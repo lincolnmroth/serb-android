@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">SErBCtrl</string>
+    <string name="ble_not_supported">Bluetooth LE not supported</string>
+    <string name="ble_required">Bluetooth LE must be on for app to function.</string>
+    <string name="primary_stag_addr">A0:E6:F8:B6:1F:87</string>
+    <string name="secondary_stag_addr">A0:E6:F8:B6:9B:04</string>
+    <string name="uuid_mov_serv">f000aa80-0451-4000-b000-000000000000</string>
+    <string name="uuid_mov_data">f000aa81-0451-4000-b000-000000000000</string>
+    <string name="uuid_mov_conf">f000aa82-0451-4000-b000-000000000000</string>
+    <string name="uuid_mov_peri">f000aa83-0451-4000-b000-000000000000</string>
+    <string name="uuid_opt_serv">f000aa70-0451-4000-b000-000000000000</string>
+    <string name="uuid_opt_data">f000aa71-0451-4000-b000-000000000000</string>
+    <string name="uuid_opt_conf">f000aa72-0451-4000-b000-000000000000</string>
+    <string name="uuid_opt_peri">f000aa73-0451-4000-b000-000000000000</string>
+</resources>
