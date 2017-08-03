@@ -46,6 +46,20 @@ public class MainActivity extends RxAppCompatActivity {
     private PublishSubject<Void> disconnectTriggerS = PublishSubject.create();
     private Observable<RxBleConnection> connectionObservableS;
     private RxBleDevice devSecondary;
+    private PublishSubject<Void> disconnectTriggerR = PublishSubject.create();
+    private Observable<RxBleConnection> connectionObservableR;
+    private RxBleDevice devRasp;
+    private final byte DEV_ALL = 0;
+    private final byte DEV_FRONT = 1;
+    private final byte DEV_REAR = 2;
+    private final byte DEV_TURN = 3;
+    private final byte DEV_LOCK = 4;
+    private final byte STATE_OFF = 0;
+    private final byte STATE_ON = 1;
+    private final byte STATE_LOW = 2;
+    private final byte STATE_BLINK = 3;
+    private final byte STATE_LEFT = 4;
+    private final byte STATE_RIGHT = 5;
 
     private Observable<RxBleConnection> prepConnObservableP() {
         return devPrimary
@@ -59,6 +73,14 @@ public class MainActivity extends RxAppCompatActivity {
         return devSecondary
                 .establishConnection(true)
                 .takeUntil(disconnectTriggerS)
+                .compose(bindUntilEvent(PAUSE))
+                .compose(new ConnectionSharingAdapter());
+    }
+
+    private Observable<RxBleConnection> prepConnObservableR() {
+        return devRasp
+                .establishConnection(true)
+                .takeUntil(disconnectTriggerR)
                 .compose(bindUntilEvent(PAUSE))
                 .compose(new ConnectionSharingAdapter());
     }
@@ -85,11 +107,14 @@ public class MainActivity extends RxAppCompatActivity {
         devSecondary = rxBleClient.getBleDevice(getString(R.string.secondary_stag_addr));
         connectionObservableS = prepConnObservableS();
 
+        devRasp = rxBleClient.getBleDevice(getString(R.string.rasp_addr));
+        connectionObservableR = prepConnObservableR();
 
 //        // Example of a call to a native method
 //        TextView tv = (TextView) findViewById(R.id.sample_text);
 //        tv.setText(stringFromJNI());
     }
+
     public void onFrontLightClick(View view) {
         //Headlight RadioGroup
         boolean checked = ((RadioButton) view).isChecked();
@@ -107,7 +132,7 @@ public class MainActivity extends RxAppCompatActivity {
             case R.id.buttonfflash:
                 if (checked)
                     // Headlight Flash
-                    this.frontFlash();
+                    this.frontBlink();
             case R.id.buttonfoff:
                 if (checked)
                     // Headlight off
@@ -132,7 +157,7 @@ public class MainActivity extends RxAppCompatActivity {
 
                 if (checked)
                     // Rear light Flash
-                    this.rearFlash();
+                    this.rearBlink();
         }
     }
     public void onTurnSignalClick(View view) {
@@ -156,39 +181,65 @@ public class MainActivity extends RxAppCompatActivity {
         }
     }
     //sent to Pi
-    private void frontFlash(){
-
+    private void frontBlink() {
+        writeRasp(DEV_FRONT, STATE_BLINK);
     }
-    private void frontLow(){
 
+    private void frontLow() {
+        writeRasp(DEV_FRONT, STATE_LOW);
     }
-    private void frontHigh(){
 
+    private void frontHigh() {
+        writeRasp(DEV_FRONT, STATE_ON);
     }
-    private void frontOff(){
 
+    private void frontOff() {
+        writeRasp(DEV_FRONT, STATE_OFF);
     }
-    private void rearOn(){
 
+    private void rearOn() {
+        writeRasp(DEV_REAR, STATE_ON);
     }
-    private void rearOff(){
 
+    private void rearOff() {
+        writeRasp(DEV_REAR, STATE_OFF);
     }
-    private void rearFlash(){
 
+    private void rearBlink() {
+        writeRasp(DEV_REAR, STATE_BLINK);
     }
-    private void turnRight(){
 
+    private void turnRight() {
+        writeRasp(DEV_TURN, STATE_RIGHT);
     }
-    private void turnLeft(){
 
+    private void turnLeft() {
+        writeRasp(DEV_TURN, STATE_LEFT);
     }
-    private void turnOff(){
 
+    private void turnOff() {
+        writeRasp(DEV_TURN, STATE_OFF);
     }
-    private void nightLights(){
+
+    private void lock() {
+        writeRasp(DEV_LOCK, STATE_ON);
+    }
+
+    private void unlock() {
+        writeRasp(DEV_LOCK, STATE_OFF);
+    }
+
+    private void hazards() {
+        writeRasp(DEV_ALL, STATE_ON);
+    }
+
+    private void allOff() {
+        writeRasp(DEV_ALL, STATE_OFF);
+    }
+
+    private void nightLights() {
         this.frontHigh();
-        this.rearFlash();
+        this.rearBlink();
     }
 
     @Override
@@ -241,6 +292,21 @@ public class MainActivity extends RxAppCompatActivity {
                                 this::onConnectionFinished
                         );
             }
+            if (!isConnectedR()) {
+                connectionObservableR
+                        .flatMap(RxBleConnection::discoverServices)
+                        .flatMap(rxBleDeviceServices -> rxBleDeviceServices.getCharacteristic(uuid(R.string.uuid_light)))
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .doOnSubscribe(() -> Log.v(TAG, "Connecting rasp"))
+                        .subscribe(
+                                characteristic -> {
+                                    Log.v(TAG, "Connection established rasp" + characteristic.getUuid().toString());
+                                    allOff();
+                                },
+                                this::onConnectionFailure,
+                                this::onConnectionFinished
+                        );
+            }
         }
     }
 
@@ -257,6 +323,10 @@ public class MainActivity extends RxAppCompatActivity {
         return devSecondary.getConnectionState() == RxBleConnection.RxBleConnectionState.CONNECTED;
     }
 
+    private boolean isConnectedR() {
+        return devRasp.getConnectionState() == RxBleConnection.RxBleConnectionState.CONNECTED;
+    }
+
     private void write(Observable<RxBleConnection> obs, int id, byte[] value, Action1<byte[]> c) {
         obs
                 .flatMap(rxBleConnection -> rxBleConnection.writeCharacteristic(uuid(id), value))
@@ -268,6 +338,16 @@ public class MainActivity extends RxAppCompatActivity {
                         },
                         this::onWriteFailure
                 );
+    }
+
+    private void writeRasp(byte dev, byte state, Action1<byte[]> c) {
+        byte[] value = new byte[]{dev, state};
+        if (isConnectedR()) write(connectionObservableR, R.string.uuid_light, value, c);
+        else Log.e(TAG, "writeRasp: not connected");
+    }
+
+    private void writeRasp(byte dev, byte state) {
+        writeRasp(dev, state, null);
     }
 
     private void enableAcc(Action1<byte[]> c) {
