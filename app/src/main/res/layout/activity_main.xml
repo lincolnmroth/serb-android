@@ -7,14 +7,202 @@
     android:layout_height="match_parent"
     tools:context="com.rutgers.winlab.serbctrl.MainActivity">
 
+
+
     <TextView
         android:id="@+id/sample_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Hello World!"
+        android:text="Scanning..."
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintHorizontal_bias="0.501"
+        app:layout_constraintVertical_bias="0.609" />
+
+    <TextView
+        android:id="@+id/textHeadlight"
+        android:layout_width="65dp"
+        android:layout_height="25dp"
+        android:text="Headlight"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonlock"
+        app:layout_constraintRight_toLeftOf="@+id/textTurnSignals"
+        android:layout_marginRight="8dp"
+        android:layout_marginLeft="8dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintHorizontal_bias="0.325" />
+
+    <TextView
+        android:id="@+id/textTurnSignals"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Turn Signals"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonlock"
+        app:layout_constraintRight_toLeftOf="@+id/textRLight"
+        android:layout_marginRight="8dp"
+        android:layout_marginLeft="8dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintHorizontal_bias="0.636" />
+
+    <TextView
+        android:id="@+id/textRLight"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Rear Light"
+
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonlock"
+        android:layout_marginRight="51dp"
+        app:layout_constraintRight_toRightOf="parent" />
+
+    <Button
+        android:id="@+id/buttonlock"
+        android:layout_width="385dp"
+        android:layout_height="60dp"
+        android:text="LOCK"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginLeft="8dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        android:layout_marginRight="8dp"
+        app:layout_constraintRight_toRightOf="parent" />
+
+    <RadioGroup
+        android:id="@+id/turnsignals"
+        android:layout_width="78dp"
+        android:layout_height="109dp"
+        android:orientation="vertical"
+        app:layout_constraintRight_toLeftOf="@+id/rearlight"
+        android:layout_marginRight="49dp"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/sample_text"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@+id/textTurnSignals"
+        app:layout_constraintVertical_bias="0.09">
+
+        <RadioButton
+            android:id="@+id/buttonrleft"
+            android:layout_width="64dp"
+            android:layout_height="31dp"
+            android:text="Off"
+            android:onClick="onTurnSignalClick"
+            tools:layout_editor_absoluteX="160dp"
+            tools:layout_editor_absoluteY="193dp" />
+
+        <RadioButton
+            android:id="@+id/buttonrright"
+            android:layout_width="64dp"
+            android:layout_height="30dp"
+            android:text="Right"
+            android:onClick="onTurnSignalClick"
+            tools:layout_editor_absoluteX="160dp"
+            tools:layout_editor_absoluteY="224dp" />
+
+        <RadioButton
+            android:id="@+id/buttonturnoff"
+            android:layout_width="63dp"
+            android:layout_height="29dp"
+            android:text="Left"
+            android:onClick="onTurnSignalClick"
+            tools:layout_editor_absoluteX="160dp"
+            tools:layout_editor_absoluteY="163dp" />
+    </RadioGroup>
+
+    <RadioGroup
+        android:id="@+id/rearlight"
+        android:layout_width="102dp"
+        android:layout_height="94dp"
+        android:layout_marginBottom="8dp"
+        android:layout_marginRight="16dp"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@+id/sample_text"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textRLight"
+        app:layout_constraintVertical_bias="0.079">
+
+        <RadioButton
+            android:id="@+id/buttonroff"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Off"
+            android:onClick="onRearLightClick"
+            tools:layout_editor_absoluteX="303dp"
+            tools:layout_editor_absoluteY="159dp" />
+
+        <RadioButton
+            android:id="@+id/buttonron"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="On"
+            android:onClick="onRearLightClick"
+            tools:layout_editor_absoluteX="303dp"
+            tools:layout_editor_absoluteY="191dp" />
+
+        <RadioButton
+            android:id="@+id/buttonrflash"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Flash"
+            android:onClick="onRearLightClick"
+            tools:layout_editor_absoluteX="303dp"
+            tools:layout_editor_absoluteY="223dp" />
+    </RadioGroup>
+
+    <RadioGroup
+        android:id="@+id/headlight"
+        android:layout_width="115dp"
+        android:layout_height="118dp"
+        android:layout_marginBottom="8dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginRight="8dp"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@+id/sample_text"
+        app:layout_constraintHorizontal_bias="0.542"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toLeftOf="@+id/turnsignals"
+        app:layout_constraintTop_toBottomOf="@+id/textHeadlight"
+        app:layout_constraintVertical_bias="0.028">
+
+        <RadioButton
+            android:id="@+id/buttonfoff"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Off"
+            android:onClick="onFrontLightClick"
+            tools:layout_editor_absoluteX="16dp"
+            tools:layout_editor_absoluteY="163dp" />
+
+        <RadioButton
+            android:id="@+id/buttonfhigh"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="High"
+            android:onClick="onFrontLightClick"
+            tools:layout_editor_absoluteX="16dp"
+            tools:layout_editor_absoluteY="227dp" />
+
+        <RadioButton
+            android:id="@+id/buttonflow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Low"
+            android:onClick="onFrontLightClick"
+            tools:layout_editor_absoluteX="16dp"
+            tools:layout_editor_absoluteY="195dp" />
+
+        <RadioButton
+            android:id="@+id/buttonfflash"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Flash"
+            android:onClick="onFrontLightClick"
+            tools:layout_editor_absoluteX="16dp"
+            tools:layout_editor_absoluteY="259dp" />
+    </RadioGroup>
 
 </android.support.constraint.ConstraintLayout>

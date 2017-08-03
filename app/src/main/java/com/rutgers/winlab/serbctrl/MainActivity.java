@@ -10,7 +10,9 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -87,6 +89,106 @@ public class MainActivity extends RxAppCompatActivity {
 //        // Example of a call to a native method
 //        TextView tv = (TextView) findViewById(R.id.sample_text);
 //        tv.setText(stringFromJNI());
+    }
+    public void onFrontLightClick(View view) {
+        //Headlight RadioGroup
+        boolean checked = ((RadioButton) view).isChecked();
+
+        // Check which radio button was clicked
+        switch(view.getId()) {
+            case R.id.buttonfhigh:
+                if (checked)
+                    // Headlight high solid
+                    this.frontHigh();
+            case R.id.buttonflow:
+                if (checked)
+                    // Headlight low solid
+                    this.frontLow();
+            case R.id.buttonfflash:
+                if (checked)
+                    // Headlight Flash
+                    this.frontFlash();
+            case R.id.buttonfoff:
+                if (checked)
+                    // Headlight off
+                    this.frontOff();
+        }
+    }
+    public void onRearLightClick(View view) {
+        //Headlight RadioGroup
+        boolean checked = ((RadioButton) view).isChecked();
+
+        // Check which radio button was clicked
+        switch(view.getId()) {
+            case R.id.buttonron:
+                if (checked)
+                    // Rear light solid
+                    this.rearOn();
+            case R.id.buttonroff:
+                if (checked)
+                    // Rear light off
+                    this.rearOff();
+            case R.id.buttonrflash:
+
+                if (checked)
+                    // Rear light Flash
+                    this.rearFlash();
+        }
+    }
+    public void onTurnSignalClick(View view) {
+        //Headlight RadioGroup
+        boolean checked = ((RadioButton) view).isChecked();
+
+        // Check which radio button was clicked
+        switch(view.getId()) {
+            case R.id.buttonrright:
+                if (checked)
+                    // Turn right
+                    this.turnRight();
+            case R.id.buttonrleft:
+                if (checked)
+                    // Turn left
+                    this.turnLeft();
+            case R.id.buttonturnoff:
+                if (checked)
+                    // Turn signals off
+                    this.turnOff();
+        }
+    }
+    //sent to Pi
+    private void frontFlash(){
+
+    }
+    private void frontLow(){
+
+    }
+    private void frontHigh(){
+
+    }
+    private void frontOff(){
+
+    }
+    private void rearOn(){
+
+    }
+    private void rearOff(){
+
+    }
+    private void rearFlash(){
+
+    }
+    private void turnRight(){
+
+    }
+    private void turnLeft(){
+
+    }
+    private void turnOff(){
+
+    }
+    private void nightLights(){
+        this.frontHigh();
+        this.rearFlash();
     }
 
     @Override
