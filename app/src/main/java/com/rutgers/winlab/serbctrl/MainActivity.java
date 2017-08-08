@@ -12,9 +12,11 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 
 import com.polidea.rxandroidble.RxBleClient;
 import com.polidea.rxandroidble.RxBleConnection;
@@ -49,6 +51,10 @@ public class MainActivity extends RxAppCompatActivity {
     private PublishSubject<Void> disconnectTriggerR = PublishSubject.create();
     private Observable<RxBleConnection> connectionObservableR;
     private RxBleDevice devRasp;
+    private boolean frontAutoMode = false;
+    private boolean rearAutoMode = false;
+    private boolean isLocked = false;
+    private boolean hazardsOn = false;
     private final byte DEV_ALL = 0;
     private final byte DEV_FRONT = 1;
     private final byte DEV_REAR = 2;
@@ -60,6 +66,8 @@ public class MainActivity extends RxAppCompatActivity {
     private final byte STATE_BLINK = 3;
     private final byte STATE_LEFT = 4;
     private final byte STATE_RIGHT = 5;
+    private byte FRONT_LAST_STATE = STATE_OFF;
+    private byte REAR_LAST_STATE = STATE_OFF;
 
     private Observable<RxBleConnection> prepConnObservableP() {
         return devPrimary
@@ -89,6 +97,45 @@ public class MainActivity extends RxAppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        final Button button = (Button) findViewById(R.id.buttonlock);
+        final Button hazButton = (Button) findViewById(R.id.buttonhazard);
+
+        button.setOnClickListener(new View.OnClickListener() {
+                    public void onClick(View v) {
+                        if (isLocked == false) {
+                            this.lock();
+                            button.setText("UNLOCK");
+                            isLocked = true;
+                        } else {
+                            this.unlock();
+                        }
+                    }
+
+                    private void unlock() {
+                        writeRasp(DEV_LOCK, STATE_OFF);
+                        button.setText("LOCK");
+                        isLocked = false;
+                    }
+
+                    private void lock() {
+                        writeRasp(DEV_LOCK, STATE_ON);
+                    }
+                });
+        hazButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if(hazardsOn == false){
+                    hazards();
+                    hazardsOn = true;
+                    hazButton.setText("Hazards OFF");
+                }
+                else{
+                    allOff();
+                    hazardsOn = false;
+                    hazButton.setText("Hazards ON");
+
+                }
+            }
+        });
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
@@ -110,103 +157,113 @@ public class MainActivity extends RxAppCompatActivity {
         devRasp = rxBleClient.getBleDevice(getString(R.string.rasp_addr));
         connectionObservableR = prepConnObservableR();
 
-//        // Example of a call to a native method
-//        TextView tv = (TextView) findViewById(R.id.sample_text);
-//        tv.setText(stringFromJNI());
+
     }
 
     public void onFrontLightClick(View view) {
         //Headlight RadioGroup
         boolean checked = ((RadioButton) view).isChecked();
-
+        if(!checked) return;
         // Check which radio button was clicked
         switch(view.getId()) {
             case R.id.buttonfhigh:
-                if (checked)
-                    // Headlight high solid
-                    this.frontHigh();
+                // Headlight high solid
+                frontAutoMode = false;
+                this.frontHigh();
+                break;
             case R.id.buttonflow:
-                if (checked)
-                    // Headlight low solid
-                    this.frontLow();
+                // Headlight low solid
+                frontAutoMode = false;
+                this.frontLow();
+                break;
             case R.id.buttonfflash:
-                if (checked)
-                    // Headlight Flash
-                    this.frontBlink();
+                // Headlight Flash
+                frontAutoMode = false;
+                this.frontBlink();
+                break;
             case R.id.buttonfoff:
-                if (checked)
-                    // Headlight off
-                    this.frontOff();
+                // Headlight off
+                frontAutoMode = false;
+                this.frontOff();
+                break;
+            case R.id.frontAuto:
+                frontAutoMode = true;
+                break;
         }
     }
     public void onRearLightClick(View view) {
         //Headlight RadioGroup
         boolean checked = ((RadioButton) view).isChecked();
-
+        if(!checked) return;
         // Check which radio button was clicked
         switch(view.getId()) {
             case R.id.buttonron:
-                if (checked)
-                    // Rear light solid
-                    this.rearOn();
+                // Rear light solid
+                rearAutoMode = false;
+                this.rearOn();
+                break;
             case R.id.buttonroff:
-                if (checked)
-                    // Rear light off
-                    this.rearOff();
+                // Rear light off
+                rearAutoMode = false;
+                this.rearOff();
+                break;
             case R.id.buttonrflash:
-
-                if (checked)
                     // Rear light Flash
-                    this.rearBlink();
+                rearAutoMode = false;
+                this.rearBlink();
+                break;
+            case R.id.rearAuto:
+                rearAutoMode = true;
+                break;
         }
     }
     public void onTurnSignalClick(View view) {
         //Headlight RadioGroup
         boolean checked = ((RadioButton) view).isChecked();
-
+        if (!checked) return;
         // Check which radio button was clicked
         switch(view.getId()) {
             case R.id.buttonrright:
-                if (checked)
-                    // Turn right
-                    this.turnRight();
+                // Turn right
+                this.turnRight();
+                break;
             case R.id.buttonrleft:
-                if (checked)
-                    // Turn left
-                    this.turnLeft();
+                // Turn left
+                this.turnLeft();
+                break;
             case R.id.buttonturnoff:
-                if (checked)
-                    // Turn signals off
-                    this.turnOff();
+                // Turn signals off
+                this.turnOff();
+                break;
         }
     }
     //sent to Pi
     private void frontBlink() {
-        writeRasp(DEV_FRONT, STATE_BLINK);
+        writeRasp(DEV_FRONT, STATE_BLINK, bytes -> FRONT_LAST_STATE = STATE_BLINK);
     }
 
     private void frontLow() {
-        writeRasp(DEV_FRONT, STATE_LOW);
+        writeRasp(DEV_FRONT, STATE_LOW, bytes -> FRONT_LAST_STATE = STATE_LOW);
     }
 
     private void frontHigh() {
-        writeRasp(DEV_FRONT, STATE_ON);
+        writeRasp(DEV_FRONT, STATE_ON, bytes -> FRONT_LAST_STATE = STATE_ON);
     }
 
     private void frontOff() {
-        writeRasp(DEV_FRONT, STATE_OFF);
+        writeRasp(DEV_FRONT, STATE_OFF, bytes -> FRONT_LAST_STATE = STATE_OFF);
     }
 
     private void rearOn() {
-        writeRasp(DEV_REAR, STATE_ON);
+        writeRasp(DEV_REAR, STATE_ON, bytes -> REAR_LAST_STATE = STATE_ON);
     }
 
     private void rearOff() {
-        writeRasp(DEV_REAR, STATE_OFF);
+        writeRasp(DEV_REAR, STATE_OFF, bytes -> REAR_LAST_STATE = STATE_OFF);
     }
 
     private void rearBlink() {
-        writeRasp(DEV_REAR, STATE_BLINK);
+        writeRasp(DEV_REAR, STATE_BLINK, bytes -> REAR_LAST_STATE = STATE_BLINK);
     }
 
     private void turnRight() {
@@ -230,16 +287,25 @@ public class MainActivity extends RxAppCompatActivity {
     }
 
     private void hazards() {
-        writeRasp(DEV_ALL, STATE_ON);
+        writeRasp(DEV_ALL, STATE_ON, bytes -> {FRONT_LAST_STATE = STATE_BLINK; REAR_LAST_STATE = STATE_BLINK;});
+        final RadioButton fflash = (RadioButton)findViewById(R.id.buttonfflash);
+        final RadioButton turnsright = (RadioButton)findViewById(R.id.buttonrright);
+        final RadioButton turnsleft = (RadioButton)findViewById(R.id.buttonrleft);
+        final RadioButton rearflash = (RadioButton)findViewById(R.id.buttonrflash);
+        fflash.setChecked(true);
+        turnsright.setChecked(false);
+        turnsleft.setChecked(false);
+        rearflash.setChecked(true);
     }
 
     private void allOff() {
-        writeRasp(DEV_ALL, STATE_OFF);
-    }
-
-    private void nightLights() {
-        this.frontHigh();
-        this.rearBlink();
+        writeRasp(DEV_ALL, STATE_OFF, bytes -> {FRONT_LAST_STATE = STATE_OFF; REAR_LAST_STATE = STATE_OFF;});
+        final RadioButton foff = (RadioButton)findViewById(R.id.buttonfoff);
+        final RadioButton turnsoff = (RadioButton)findViewById(R.id.buttonturnoff);
+        final RadioButton rearoff = (RadioButton)findViewById(R.id.buttonroff);
+        foff.setChecked(true);
+        turnsoff.setChecked(true);
+        rearoff.setChecked(true);
     }
 
     @Override
@@ -475,6 +541,23 @@ public class MainActivity extends RxAppCompatActivity {
         int exponent = (sfloat >> 12) & 0xFF;
         double magnitude = Math.pow(2.0f, exponent);
         double out = (mantissa * magnitude) / 100.0f;
+        if(out < 30.0){
+            if(frontAutoMode && FRONT_LAST_STATE != STATE_ON){
+                frontHigh();
+
+            }
+            if(rearAutoMode && REAR_LAST_STATE != STATE_BLINK){
+                rearBlink();
+
+            }
+        } else {
+            if (frontAutoMode && FRONT_LAST_STATE != STATE_OFF) {
+                frontOff();
+            }
+            if (rearAutoMode && REAR_LAST_STATE != STATE_OFF) {
+                rearOff();
+            }
+        }
         Log.v(TAG, "Lux Notification:\t" + out);
     }
 
