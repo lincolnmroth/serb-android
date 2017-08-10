@@ -2,11 +2,13 @@ package com.rutgers.winlab.serbctrl;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -135,9 +137,11 @@ public class MainActivity extends RxAppCompatActivity{
 
         sendHelpBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
-                Toast.makeText(getApplicationContext(),
+                Toast.makeText(MainActivity.this ,
                         "Sending", Toast.LENGTH_LONG).show();
+                Log.v(TAG, "Location Sending Message Test 5");
                 sendSMSMessage();
+                Log.v(TAG, "Location Sending Message Test 6");
             }
         });
 
@@ -288,7 +292,8 @@ public class MainActivity extends RxAppCompatActivity{
         }
     }
 
-    protected void sendSMSMessage() {
+    private void sendSMSMessage() {
+        Log.v(TAG, "Location Sending Message Test 1");
         phoneNo = "6093692181";
         message = "Please send help! I've gotten into a biking accident! My location is ";
         // should have permissions at this point
@@ -302,6 +307,8 @@ public class MainActivity extends RxAppCompatActivity{
                             Manifest.permission.ACCESS_FINE_LOCATION},
                     REQUEST_PERM_LOCATION);
         }
+        Log.v(TAG, "Location Sending Message Test 2");
+
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.SEND_SMS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -309,6 +316,7 @@ public class MainActivity extends RxAppCompatActivity{
                     new String[]{Manifest.permission.SEND_SMS},
                     MY_PERMISSIONS_REQUEST_SEND_SMS);
         }
+        Log.v(TAG, "Location Sending Message Test 3");
         LocationRequest mLocationRequest = new LocationRequest();
         mLocationRequest.setInterval(10000);
         mLocationRequest.setFastestInterval(5000);
@@ -318,6 +326,7 @@ public class MainActivity extends RxAppCompatActivity{
             public void onLocationResult(LocationResult result) {
                 Location loc = result.getLastLocation();
                 String url = "https://www.google.com/maps/place/" + loc.getLatitude() + "," + loc.getLongitude();
+                Log.v(TAG, "Location: " + url);
                 SmsManager smsManager = SmsManager.getDefault();
                 smsManager.sendTextMessage(phoneNo, null, message + url, null, null);
                 Toast.makeText(getApplicationContext(), "SMS sent.",
@@ -664,7 +673,34 @@ public class MainActivity extends RxAppCompatActivity{
         double x = (((bytes[7] << 8) + bytes[6]) / SCALE) * -1;
         double y = ((bytes[9] << 8) + bytes[8]) / SCALE;
         double z = (((bytes[11] << 8) + bytes[10]) / SCALE) * -1;
-        ((TextView) findViewById(R.id.sample_text)).setText(x + "\n" + y + "\n" + z);
+       // ((TextView) findViewById(R.id.sample_text)).setText(x + "\n" + y + "\n" + z);
+        if(x < -3){
+
+            AlertDialog.Builder alert = new AlertDialog.Builder(this);
+            alert.setCancelable(true);
+            alert.setTitle("EMERGENCY");
+            alert.setMessage("I detected an crash. Would you like to send for help?");
+            alert.setPositiveButton("Send",
+                    new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            sendSMSMessage();
+                           Toast.makeText(MainActivity.this,
+                                    "Sending", Toast.LENGTH_LONG).show();
+                            Log.v(TAG, "Emergency detected and confirmed, sending alert");
+                        }
+                    });
+            alert.setNegativeButton("I'm OK", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                    Log.v(TAG, "Emergency Dismissed");
+                }
+            });
+
+            AlertDialog dialog = alert.create();
+            dialog.show();
+        }
         Log.v(TAG, "Acc Notification:\t" + x + "\t" + y + "\t" + z);
     }
 
