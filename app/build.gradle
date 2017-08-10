@@ -52,5 +52,6 @@ dependencies {
     compile 'io.reactivex:rxandroid:1.2.1'
     compile 'com.trello:rxlifecycle:1.0'
     compile 'com.trello:rxlifecycle-components:1.0'
+    compile 'com.google.android.gms:play-services-location:11.0.4'
     testCompile 'junit:junit:4.12'
 }

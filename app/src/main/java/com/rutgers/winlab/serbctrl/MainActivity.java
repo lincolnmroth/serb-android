@@ -29,6 +29,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.polidea.rxandroidble.RxBleClient;
 import com.polidea.rxandroidble.RxBleConnection;
 import com.polidea.rxandroidble.RxBleDevice;
@@ -51,16 +58,14 @@ import rx.functions.Action1;
 
 
 public class MainActivity extends RxAppCompatActivity{
-// TODO: stop scanning when both are found
-private static final int MY_PERMISSIONS_REQUEST_SEND_SMS =0 ;
     Button sendHelpBtn;
-    EditText txtphoneNo;
-    EditText txtMessage;
     String phoneNo;
     String message;
     private static final String TAG = "MainActivity";
     private BluetoothAdapter mBluetoothAdapter;
+    private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 0;
     private static final int REQUEST_ENABLE_BT = 1;
+    private static final int REQUEST_PERM_LOCATION = 2;
     private RxBleClient rxBleClient;
     private PublishSubject<Void> disconnectTriggerP = PublishSubject.create();
     private Observable<RxBleConnection> connectionObservableP;
@@ -71,7 +76,6 @@ private static final int MY_PERMISSIONS_REQUEST_SEND_SMS =0 ;
     private PublishSubject<Void> disconnectTriggerR = PublishSubject.create();
     private Observable<RxBleConnection> connectionObservableR;
     private RxBleDevice devRasp;
-    private String location;
     private boolean frontAutoMode = false;
     private boolean rearAutoMode = false;
     private boolean isLocked = false;
@@ -89,6 +93,8 @@ private static final int MY_PERMISSIONS_REQUEST_SEND_SMS =0 ;
     private final byte STATE_RIGHT = 5;
     private byte FRONT_LAST_STATE = STATE_OFF;
     private byte REAR_LAST_STATE = STATE_OFF;
+
+    private FusedLocationProviderClient mFusedLocationClient;
 
     private Observable<RxBleConnection> prepConnObservableP() {
         return devPrimary
@@ -118,6 +124,7 @@ private static final int MY_PERMISSIONS_REQUEST_SEND_SMS =0 ;
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
 
         //sendBtn = (Button) findViewById(R.id.btnSendSMS);
@@ -197,8 +204,7 @@ private static final int MY_PERMISSIONS_REQUEST_SEND_SMS =0 ;
 
                 }
             }
-        })
-        ;
+        });
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
@@ -284,54 +290,67 @@ private static final int MY_PERMISSIONS_REQUEST_SEND_SMS =0 ;
 
     protected void sendSMSMessage() {
         phoneNo = "6093692181";
-        message = "Please send help! I've gotten into a biking accident and need medical attention! My location is " + location;
-        Log.d("PHONE NUMBER1:",phoneNo);
+        message = "Please send help! I've gotten into a biking accident! My location is ";
+        // should have permissions at this point
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,
+                            Manifest.permission.ACCESS_FINE_LOCATION},
+                    REQUEST_PERM_LOCATION);
+        }
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.SEND_SMS)
                 != PackageManager.PERMISSION_GRANTED) {
-            Log.d("PHONE NUMBER2:",phoneNo);
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.SEND_SMS)) {
-                Log.d("PHONE NUMBER5:",phoneNo);
-            } else {
-                Log.d("PHONE NUMBER3:",phoneNo);
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.SEND_SMS},
-                        MY_PERMISSIONS_REQUEST_SEND_SMS);
-            }
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.SEND_SMS},
+                    MY_PERMISSIONS_REQUEST_SEND_SMS);
         }
-        else{
-            Log.d("PHONE NUMBER6:",phoneNo);
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.SEND_SMS)) {
-                Log.d("PHONE NUMBER7:",phoneNo);
-            } else {
-                Log.d("PHONE NUMBER8:",phoneNo);
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.SEND_SMS},
-                        MY_PERMISSIONS_REQUEST_SEND_SMS);
+        LocationRequest mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(10000);
+        mLocationRequest.setFastestInterval(5000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mFusedLocationClient.requestLocationUpdates(mLocationRequest, new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult result) {
+                Location loc = result.getLastLocation();
+                String url = "https://www.google.com/maps/place/" + loc.getLatitude() + "," + loc.getLongitude();
+                SmsManager smsManager = SmsManager.getDefault();
+                smsManager.sendTextMessage(phoneNo, null, message + url, null, null);
+                Toast.makeText(getApplicationContext(), "SMS sent.",
+                        Toast.LENGTH_LONG).show();
+                mFusedLocationClient.removeLocationUpdates(this);
             }
-        }
-        Log.d("PHONE NUMBER4:",phoneNo);
+        }, null);
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,String permissions[], int[] grantResults) {
-        Log.d("PHONE NUMBER:",phoneNo);
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         switch (requestCode) {
             case MY_PERMISSIONS_REQUEST_SEND_SMS: {
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    SmsManager smsManager = SmsManager.getDefault();
-                    Log.d("PHONE NUMBER:",phoneNo);
-                    smsManager.sendTextMessage(phoneNo, null, message, null, null);
-                    Toast.makeText(getApplicationContext(), "SMS sent.",
-                            Toast.LENGTH_LONG).show();
                 } else {
-                    Toast.makeText(getApplicationContext(),
-                            "SMS faild, please try again.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this,
+                            "SMS permissions are required", Toast.LENGTH_LONG).show();
                     return;
                 }
+                break;
+            }
+            case REQUEST_PERM_LOCATION: {
+                if (grantResults.length > 1
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                        && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+                } else {
+                    Toast.makeText(this,
+                            "Location permissions are required", Toast.LENGTH_LONG).show();
+
+                    return;
+                }
+                break;
             }
         }
 
@@ -406,6 +425,26 @@ private static final int MY_PERMISSIONS_REQUEST_SEND_SMS =0 ;
     @Override
     protected void onResume() {
         super.onResume();
+
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,
+                            Manifest.permission.ACCESS_FINE_LOCATION},
+                    REQUEST_PERM_LOCATION);
+        }
+
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.SEND_SMS)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.SEND_SMS},
+                    MY_PERMISSIONS_REQUEST_SEND_SMS);
+        }
+
 
         if (null == mBluetoothAdapter || !mBluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
