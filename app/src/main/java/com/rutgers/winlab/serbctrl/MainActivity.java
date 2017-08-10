@@ -1,5 +1,6 @@
 package com.rutgers.winlab.serbctrl;
 
+import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -8,11 +9,21 @@ import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.location.Address;
+import android.location.Geocoder;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
+import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -26,6 +37,9 @@ import com.polidea.rxandroidble.utils.ConnectionSharingAdapter;
 import static com.trello.rxlifecycle.android.ActivityEvent.PAUSE;
 import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import rx.Observable;
@@ -36,8 +50,14 @@ import rx.functions.Action1;
 
 
 
-public class MainActivity extends RxAppCompatActivity {
+public class MainActivity extends RxAppCompatActivity{
 // TODO: stop scanning when both are found
+private static final int MY_PERMISSIONS_REQUEST_SEND_SMS =0 ;
+    Button sendHelpBtn;
+    EditText txtphoneNo;
+    EditText txtMessage;
+    String phoneNo;
+    String message;
     private static final String TAG = "MainActivity";
     private BluetoothAdapter mBluetoothAdapter;
     private static final int REQUEST_ENABLE_BT = 1;
@@ -51,6 +71,7 @@ public class MainActivity extends RxAppCompatActivity {
     private PublishSubject<Void> disconnectTriggerR = PublishSubject.create();
     private Observable<RxBleConnection> connectionObservableR;
     private RxBleDevice devRasp;
+    private String location;
     private boolean frontAutoMode = false;
     private boolean rearAutoMode = false;
     private boolean isLocked = false;
@@ -97,32 +118,73 @@ public class MainActivity extends RxAppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+
+        //sendBtn = (Button) findViewById(R.id.btnSendSMS);
+        //txtphoneNo = (EditText) findViewById(R.id.editText);
+        //txtMessage = (EditText) findViewById(R.id.editText2);
+        sendHelpBtn = (Button) findViewById(R.id.needhelp);
+
+
+        sendHelpBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                Toast.makeText(getApplicationContext(),
+                        "Sending", Toast.LENGTH_LONG).show();
+                sendSMSMessage();
+            }
+        });
+
+
         final Button button = (Button) findViewById(R.id.buttonlock);
         final Button hazButton = (Button) findViewById(R.id.buttonhazard);
+        final Button turnOff = (Button) findViewById(R.id.turnOff);
+        final Button turnRight = (Button) findViewById(R.id.turnRight);
+        final Button turnLeft = (Button) findViewById(R.id.turnLeft);
 
+        turnOff.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                MainActivity.this.turnOff();
+                turnOff.setBackgroundColor(Color.RED);
+                turnRight.setBackgroundColor(Color.LTGRAY);
+                turnLeft.setBackgroundColor(Color.LTGRAY);
+
+            }
+        });
+        turnRight.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                MainActivity.this.turnOff();
+                MainActivity.this.turnRight();
+                turnOff.setBackgroundColor(Color.LTGRAY);
+                turnLeft.setBackgroundColor(Color.LTGRAY);
+                turnRight.setBackgroundColor(Color.RED);
+            }
+        });
+        turnLeft.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                MainActivity.this.turnOff();
+                MainActivity.this.turnLeft();
+                turnOff.setBackgroundColor(Color.LTGRAY);
+                turnLeft.setBackgroundColor(Color.RED);
+                turnRight.setBackgroundColor(Color.LTGRAY);
+            }
+        });
         button.setOnClickListener(new View.OnClickListener() {
                     public void onClick(View v) {
                         if (isLocked == false) {
-                            this.lock();
+                            lock();
                             button.setText("UNLOCK");
                             isLocked = true;
                         } else {
-                            this.unlock();
+                            unlock();
+                            isLocked = false;
+                            button.setText("LOCK");
                         }
-                    }
-
-                    private void unlock() {
-                        writeRasp(DEV_LOCK, STATE_OFF);
-                        button.setText("LOCK");
-                        isLocked = false;
-                    }
-
-                    private void lock() {
-                        writeRasp(DEV_LOCK, STATE_ON);
                     }
                 });
         hazButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                frontAutoMode = false;
+                rearAutoMode  = false;
                 if(hazardsOn == false){
                     hazards();
                     hazardsOn = true;
@@ -135,7 +197,8 @@ public class MainActivity extends RxAppCompatActivity {
 
                 }
             }
-        });
+        })
+        ;
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
@@ -159,6 +222,7 @@ public class MainActivity extends RxAppCompatActivity {
 
 
     }
+
 
     public void onFrontLightClick(View view) {
         //Headlight RadioGroup
@@ -217,26 +281,62 @@ public class MainActivity extends RxAppCompatActivity {
                 break;
         }
     }
-    public void onTurnSignalClick(View view) {
-        //Headlight RadioGroup
-        boolean checked = ((RadioButton) view).isChecked();
-        if (!checked) return;
-        // Check which radio button was clicked
-        switch(view.getId()) {
-            case R.id.buttonrright:
-                // Turn right
-                this.turnRight();
-                break;
-            case R.id.buttonrleft:
-                // Turn left
-                this.turnLeft();
-                break;
-            case R.id.buttonturnoff:
-                // Turn signals off
-                this.turnOff();
-                break;
+
+    protected void sendSMSMessage() {
+        phoneNo = "6093692181";
+        message = "Please send help! I've gotten into a biking accident and need medical attention! My location is " + location;
+        Log.d("PHONE NUMBER1:",phoneNo);
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.SEND_SMS)
+                != PackageManager.PERMISSION_GRANTED) {
+            Log.d("PHONE NUMBER2:",phoneNo);
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.SEND_SMS)) {
+                Log.d("PHONE NUMBER5:",phoneNo);
+            } else {
+                Log.d("PHONE NUMBER3:",phoneNo);
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.SEND_SMS},
+                        MY_PERMISSIONS_REQUEST_SEND_SMS);
+            }
         }
+        else{
+            Log.d("PHONE NUMBER6:",phoneNo);
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.SEND_SMS)) {
+                Log.d("PHONE NUMBER7:",phoneNo);
+            } else {
+                Log.d("PHONE NUMBER8:",phoneNo);
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.SEND_SMS},
+                        MY_PERMISSIONS_REQUEST_SEND_SMS);
+            }
+        }
+        Log.d("PHONE NUMBER4:",phoneNo);
     }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,String permissions[], int[] grantResults) {
+        Log.d("PHONE NUMBER:",phoneNo);
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_SEND_SMS: {
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    SmsManager smsManager = SmsManager.getDefault();
+                    Log.d("PHONE NUMBER:",phoneNo);
+                    smsManager.sendTextMessage(phoneNo, null, message, null, null);
+                    Toast.makeText(getApplicationContext(), "SMS sent.",
+                            Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(getApplicationContext(),
+                            "SMS faild, please try again.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+            }
+        }
+
+    }
+
     //sent to Pi
     private void frontBlink() {
         writeRasp(DEV_FRONT, STATE_BLINK, bytes -> FRONT_LAST_STATE = STATE_BLINK);
@@ -289,22 +389,17 @@ public class MainActivity extends RxAppCompatActivity {
     private void hazards() {
         writeRasp(DEV_ALL, STATE_ON, bytes -> {FRONT_LAST_STATE = STATE_BLINK; REAR_LAST_STATE = STATE_BLINK;});
         final RadioButton fflash = (RadioButton)findViewById(R.id.buttonfflash);
-        final RadioButton turnsright = (RadioButton)findViewById(R.id.buttonrright);
-        final RadioButton turnsleft = (RadioButton)findViewById(R.id.buttonrleft);
         final RadioButton rearflash = (RadioButton)findViewById(R.id.buttonrflash);
         fflash.setChecked(true);
-        turnsright.setChecked(false);
-        turnsleft.setChecked(false);
         rearflash.setChecked(true);
     }
 
     private void allOff() {
         writeRasp(DEV_ALL, STATE_OFF, bytes -> {FRONT_LAST_STATE = STATE_OFF; REAR_LAST_STATE = STATE_OFF;});
         final RadioButton foff = (RadioButton)findViewById(R.id.buttonfoff);
-        final RadioButton turnsoff = (RadioButton)findViewById(R.id.buttonturnoff);
+
         final RadioButton rearoff = (RadioButton)findViewById(R.id.buttonroff);
         foff.setChecked(true);
-        turnsoff.setChecked(true);
         rearoff.setChecked(true);
     }
 
@@ -567,8 +662,12 @@ public class MainActivity extends RxAppCompatActivity {
         double x = ((bytes[1] << 8) + bytes[0]) / SCALE;
         double y = ((bytes[3] << 8) + bytes[2]) / SCALE;
         double z = ((bytes[5] << 8) + bytes[4]) / SCALE;
-        ((TextView) findViewById(R.id.sample_text)).setText(x + "\n" + y + "\n" + z);
+        //All gyro data below
+        //x + "\n" + y + "\n" + z + "\n"
+        //only display RPM
+        ((TextView) findViewById(R.id.sample_text)).setText("RPM " + (int) -z/6);
         Log.v(TAG, "Gyro Notification:\t" + x + "\t" + y + "\t" + z);
+
     }
 
     private void onNotificationSetupFailure(Throwable throwable) {
@@ -581,6 +680,7 @@ public class MainActivity extends RxAppCompatActivity {
         Log.v(TAG, "Notification setup success");
         if (null != c) c.call();
     }
+
 
     /**
      * A native method that is implemented by the 'native-lib' native library,
