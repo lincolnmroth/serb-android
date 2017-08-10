@@ -18,9 +18,11 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.telephony.SmsManager;
+import android.text.InputType;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -46,7 +48,19 @@ import com.polidea.rxandroidble.utils.ConnectionSharingAdapter;
 import static com.trello.rxlifecycle.android.ActivityEvent.PAUSE;
 import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -80,6 +94,7 @@ public class MainActivity extends RxAppCompatActivity{
     private RxBleDevice devRasp;
     private boolean frontAutoMode = false;
     private boolean rearAutoMode = false;
+    private String emergencyNum = "";
     private boolean isLocked = false;
     private boolean hazardsOn = false;
     private final byte DEV_ALL = 0;
@@ -145,13 +160,44 @@ public class MainActivity extends RxAppCompatActivity{
             }
         });
 
-
+        final Button emergencyChange = (Button) findViewById(R.id.emergencyChange);
         final Button button = (Button) findViewById(R.id.buttonlock);
         final Button hazButton = (Button) findViewById(R.id.buttonhazard);
         final Button turnOff = (Button) findViewById(R.id.turnOff);
         final Button turnRight = (Button) findViewById(R.id.turnRight);
         final Button turnLeft = (Button) findViewById(R.id.turnLeft);
 
+        emergencyChange.setOnClickListener(new View.OnClickListener(){
+            public void onClick(View v){
+                //add new emergency contact number to save in internal storage
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setTitle("Emergency Contact Number");
+                final EditText input = new EditText(MainActivity.this);
+                //input box for user to add number
+                input.setInputType(InputType.TYPE_CLASS_TEXT);
+                builder.setView(input);
+
+                // Set up the buttons
+                builder.setPositiveButton("SAVE", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        emergencyNum = input.getText().toString();
+                        writeToFile(emergencyNum, MainActivity.this);
+
+
+                    }
+                });
+                builder.setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        Log.v(TAG, "Emergency Change Dismissed");
+                    }
+                });
+
+                builder.show();
+            }
+        });
         turnOff.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 MainActivity.this.turnOff();
@@ -294,7 +340,8 @@ public class MainActivity extends RxAppCompatActivity{
 
     private void sendSMSMessage() {
         Log.v(TAG, "Location Sending Message Test 1");
-        phoneNo = "6093692181";
+        String number = readFromFile(MainActivity.this);
+        phoneNo = number;
         message = "Please send help! I've gotten into a biking accident! My location is ";
         // should have permissions at this point
         if (ContextCompat.checkSelfPermission(this,
@@ -434,7 +481,6 @@ public class MainActivity extends RxAppCompatActivity{
     @Override
     protected void onResume() {
         super.onResume();
-
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_COARSE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(this,
@@ -452,6 +498,27 @@ public class MainActivity extends RxAppCompatActivity{
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.SEND_SMS},
                     MY_PERMISSIONS_REQUEST_SEND_SMS);
+        }
+        if(readFromFile(MainActivity.this )== "") {
+            //add new emergency contact number to save in internal storage
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Emergency Contact Number");
+            final EditText input = new EditText(this);
+            //input box for user to add number
+            input.setInputType(InputType.TYPE_CLASS_TEXT);
+            builder.setView(input);
+
+            // Set up the buttons
+            builder.setPositiveButton("SAVE", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    emergencyNum = input.getText().toString();
+                    writeToFile(emergencyNum, MainActivity.this);
+
+
+                }
+            });
+            builder.show();
         }
 
 
@@ -522,6 +589,48 @@ public class MainActivity extends RxAppCompatActivity{
     @Override
     protected void onPause() {
         super.onPause();
+    }
+
+    private void writeToFile(String data, Context context) {
+        try {
+            Log.v(TAG, "Writing to file");
+            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(context.openFileOutput("config.txt", Context.MODE_PRIVATE));
+            outputStreamWriter.write(data);
+            outputStreamWriter.close();
+        }
+        catch (IOException e) {
+            Log.e("Exception", "File write failed: " + e.toString());
+        }
+    }
+
+    private String readFromFile(Context context) {
+
+        String ret = "";
+
+        try {
+            InputStream inputStream = context.openFileInput("config.txt");
+
+            if ( inputStream != null ) {
+                InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+                BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+                String receiveString = "";
+                StringBuilder stringBuilder = new StringBuilder();
+
+                while ( (receiveString = bufferedReader.readLine()) != null ) {
+                    stringBuilder.append(receiveString);
+                }
+
+                inputStream.close();
+                ret = stringBuilder.toString();
+            }
+        }
+        catch (FileNotFoundException e) {
+            Log.e("login activity", "File not found: " + e.toString());
+        } catch (IOException e) {
+            Log.e("login activity", "Can not read file: " + e.toString());
+        }
+
+        return ret;
     }
 
     private boolean isConnectedP() {
