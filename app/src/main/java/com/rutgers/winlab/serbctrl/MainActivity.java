@@ -1,6 +1,7 @@
 package com.rutgers.winlab.serbctrl;
 
 import android.Manifest;
+import android.app.ActionBar;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
@@ -68,6 +69,7 @@ public class MainActivity extends RxAppCompatActivity{
     private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 0;
     private static final int REQUEST_ENABLE_BT = 1;
     private static final int REQUEST_PERM_LOCATION = 2;
+    private static final int HELMET_REQ_CODE = 3;
     private RxBleClient rxBleClient;
     private PublishSubject<Void> disconnectTriggerP = PublishSubject.create();
     private Observable<RxBleConnection> connectionObservableP;
@@ -95,6 +97,7 @@ public class MainActivity extends RxAppCompatActivity{
     private final byte STATE_RIGHT = 5;
     private byte FRONT_LAST_STATE = STATE_OFF;
     private byte REAR_LAST_STATE = STATE_OFF;
+    private boolean helmet = false;
 
     private FusedLocationProviderClient mFusedLocationClient;
 
@@ -126,6 +129,9 @@ public class MainActivity extends RxAppCompatActivity{
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        View decorView = getWindow().getDecorView();
+        int uiOptions = View.SYSTEM_UI_FLAG_FULLSCREEN;
+        decorView.setSystemUiVisibility(uiOptions);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
 
@@ -365,6 +371,18 @@ public class MainActivity extends RxAppCompatActivity{
 
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == HELMET_REQ_CODE) {
+            if (resultCode == RESULT_OK) {
+                helmet = true;
+                View decorView = getWindow().getDecorView();
+                int uiOptions = View.SYSTEM_UI_FLAG_VISIBLE;
+                decorView.setSystemUiVisibility(uiOptions);
+            }
+        }
+    }
+
     //sent to Pi
     private void frontBlink() {
         writeRasp(DEV_FRONT, STATE_BLINK, bytes -> FRONT_LAST_STATE = STATE_BLINK);
@@ -434,6 +452,11 @@ public class MainActivity extends RxAppCompatActivity{
     @Override
     protected void onResume() {
         super.onResume();
+
+        if (!helmet) {
+            Intent intent = new Intent(this, MarkerTracker.class);
+            startActivityForResult(intent, HELMET_REQ_CODE);
+        }
 
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_COARSE_LOCATION)
