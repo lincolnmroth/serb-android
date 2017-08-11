@@ -115,7 +115,7 @@ public class MainActivity extends RxAppCompatActivity{
     private final byte STATE_RIGHT = 5;
     private byte FRONT_LAST_STATE = STATE_OFF;
     private byte REAR_LAST_STATE = STATE_OFF;
-    private boolean helmet = true;
+    private boolean helmet = false;
     private boolean autoResponse = true;
 
     private FusedLocationProviderClient mFusedLocationClient;
