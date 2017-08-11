@@ -164,11 +164,7 @@ public class MainActivity extends RxAppCompatActivity{
             public void onClick(View view) {
                 Toast.makeText(MainActivity.this ,
                         "Sending", Toast.LENGTH_LONG).show();
-                Log.v(TAG, "Location Sending Message Test 5");
                 sendSMSMessage();
-                Toast.makeText(MainActivity.this ,
-                        "Sent", Toast.LENGTH_SHORT).show();
-                Log.v(TAG, "Location Sending Message Test 6");
             }
         });
 
@@ -351,7 +347,6 @@ public class MainActivity extends RxAppCompatActivity{
     }
 
     private void sendSMSMessage() {
-        Log.v(TAG, "Location Sending Message Test 1");
         String number = readFromFile(MainActivity.this);
         phoneNo = number;
         message = "Please send help! I've gotten into a biking accident! My location is ";
@@ -366,7 +361,6 @@ public class MainActivity extends RxAppCompatActivity{
                             Manifest.permission.ACCESS_FINE_LOCATION},
                     REQUEST_PERM_LOCATION);
         }
-        Log.v(TAG, "Location Sending Message Test 2");
 
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.SEND_SMS)
@@ -375,7 +369,6 @@ public class MainActivity extends RxAppCompatActivity{
                     new String[]{Manifest.permission.SEND_SMS},
                     MY_PERMISSIONS_REQUEST_SEND_SMS);
         }
-        Log.v(TAG, "Location Sending Message Test 3");
         LocationRequest mLocationRequest = new LocationRequest();
         mLocationRequest.setInterval(10000);
         mLocationRequest.setFastestInterval(5000);
@@ -814,12 +807,12 @@ public class MainActivity extends RxAppCompatActivity{
         double y = ((bytes[9] << 8) + bytes[8]) / SCALE;
         double z = (((bytes[11] << 8) + bytes[10]) / SCALE) * -1;
        // ((TextView) findViewById(R.id.sample_text)).setText(x + "\n" + y + "\n" + z);
-        if(x < -3){
+        if (x < -3 || x > 8) {
             autoResponse = true;
             AlertDialog.Builder alert = new AlertDialog.Builder(this);
             alert.setCancelable(true);
             alert.setTitle("EMERGENCY");
-            alert.setMessage("I detected an crash. Would you like to send for help?");
+            alert.setMessage("I detected a crash. Would you like to send for help?");
             alert.setPositiveButton("Send",
                     new DialogInterface.OnClickListener() {
                         @Override
@@ -846,12 +839,15 @@ public class MainActivity extends RxAppCompatActivity{
                 @Override
                 public void run() {
                     // this code will be executed after 7 seconds
-                    if(autoResponse) {
-                        sendSMSMessage();
-                        Toast.makeText(MainActivity.this,
-                                "Sending", Toast.LENGTH_LONG).show();
-                        Log.v(TAG, "Emergency detected and automatic message triggered");
-                    }
+                    runOnUiThread(() -> {
+                        if(MainActivity.this.autoResponse) {
+                            sendSMSMessage();
+                            Toast.makeText(MainActivity.this,
+                                    "Sending", Toast.LENGTH_LONG).show();
+                            Log.v(TAG, "Emergency detected and automatic message triggered");
+                            dialog.dismiss();
+                        }
+                    });
                 }
             }, 7000);
 
