@@ -64,7 +64,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
+import java.util.logging.Handler;
 
 import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
@@ -112,7 +115,8 @@ public class MainActivity extends RxAppCompatActivity{
     private final byte STATE_RIGHT = 5;
     private byte FRONT_LAST_STATE = STATE_OFF;
     private byte REAR_LAST_STATE = STATE_OFF;
-    private boolean helmet = false;
+    private boolean helmet = true;
+    private boolean autoResponse = true;
 
     private FusedLocationProviderClient mFusedLocationClient;
 
@@ -162,6 +166,8 @@ public class MainActivity extends RxAppCompatActivity{
                         "Sending", Toast.LENGTH_LONG).show();
                 Log.v(TAG, "Location Sending Message Test 5");
                 sendSMSMessage();
+                Toast.makeText(MainActivity.this ,
+                        "Sent", Toast.LENGTH_SHORT).show();
                 Log.v(TAG, "Location Sending Message Test 6");
             }
         });
@@ -809,7 +815,7 @@ public class MainActivity extends RxAppCompatActivity{
         double z = (((bytes[11] << 8) + bytes[10]) / SCALE) * -1;
        // ((TextView) findViewById(R.id.sample_text)).setText(x + "\n" + y + "\n" + z);
         if(x < -3){
-
+            autoResponse = true;
             AlertDialog.Builder alert = new AlertDialog.Builder(this);
             alert.setCancelable(true);
             alert.setTitle("EMERGENCY");
@@ -822,6 +828,7 @@ public class MainActivity extends RxAppCompatActivity{
                            Toast.makeText(MainActivity.this,
                                     "Sending", Toast.LENGTH_LONG).show();
                             Log.v(TAG, "Emergency detected and confirmed, sending alert");
+                           autoResponse = false;
                         }
                     });
             alert.setNegativeButton("I'm OK", new DialogInterface.OnClickListener() {
@@ -829,11 +836,26 @@ public class MainActivity extends RxAppCompatActivity{
                 public void onClick(DialogInterface dialog, int which) {
                     dialog.dismiss();
                     Log.v(TAG, "Emergency Dismissed");
+                    autoResponse = false;
                 }
             });
-
             AlertDialog dialog = alert.create();
             dialog.show();
+            //auto timer, gives user 7 seconds to hit a response on emergency message or message will be sent automatically
+            new Timer().schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    // this code will be executed after 7 seconds
+                    if(autoResponse) {
+                        sendSMSMessage();
+                        Toast.makeText(MainActivity.this,
+                                "Sending", Toast.LENGTH_LONG).show();
+                        Log.v(TAG, "Emergency detected and automatic message triggered");
+                    }
+                }
+            }, 7000);
+
+
         }
         Log.v(TAG, "Acc Notification:\t" + x + "\t" + y + "\t" + z);
     }
